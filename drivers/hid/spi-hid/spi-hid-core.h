@@ -47,7 +47,7 @@ struct spi_hid {
 	struct spi_device	*spi;	/* spi device. */
 	struct hid_device	*hid;	/* pointer to corresponding HID dev. */
 
-	struct spi_transfer	input_transfer[2];	/* Transfer buffer for read and write. */
+	struct spi_transfer	input_transfer;	/* Transfer buffer for read and write. */
 	struct spi_message	input_message;	/* used to execute a sequence of spi transfers. */
 
 	struct spihid_ops	*ops;
@@ -57,6 +57,7 @@ struct spi_hid {
 	struct spi_hid_output_buf *output;	/* Output buffer. */
 	struct spi_hid_input_buf *input;	/* Input buffer. */
 	struct spi_hid_input_buf *response;	/* Response buffer. */
+	u8		*input_tx;
 
 	struct drm_panel_follower panel_follower;
 	bool	is_panel_follower;
