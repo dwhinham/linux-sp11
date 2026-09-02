@@ -192,21 +192,22 @@ static int spi_hid_input_sync(struct spi_hid *shid, void *buf, u16 length,
 {
 	int error;
 
-	shid->input_transfer[0].tx_buf = is_header ?
+	const u8 *approval = is_header ?
 					 shid->read_approval_header :
 					 shid->read_approval_body;
-	shid->input_transfer[0].len = SPI_HID_READ_APPROVAL_LEN;
 
-	shid->input_transfer[1].rx_buf = buf;
-	shid->input_transfer[1].len = length;
+	memcpy(shid->input_tx, approval, SPI_HID_READ_APPROVAL_LEN);
+	shid->input_transfer.tx_buf = shid->input_tx;
+	shid->input_transfer.rx_buf = buf;
+	shid->input_transfer.len = length;
 
 	spi_message_init_with_transfers(&shid->input_message,
-					shid->input_transfer, 2);
+					&shid->input_transfer, 1);
 
-	trace_spi_hid_input_sync(shid,	shid->input_transfer[0].tx_buf,
-				 shid->input_transfer[0].len,
-				 shid->input_transfer[1].rx_buf,
-				 shid->input_transfer[1].len, 0);
+	trace_spi_hid_input_sync(shid, shid->input_transfer.tx_buf,
+				 SPI_HID_READ_APPROVAL_LEN,
+				 shid->input_transfer.rx_buf,
+				 shid->input_transfer.len, 0);
 
 	error = spi_sync(shid->spi, &shid->input_message);
 	if (error) {
@@ -900,10 +901,10 @@ static irqreturn_t spi_hid_dev_irq(int irq, void *_shid)
 		}
 
 		trace_spi_hid_input_header_complete(shid,
-						    shid->input_transfer[0].tx_buf,
-						    shid->input_transfer[0].len,
-						    shid->input_transfer[1].rx_buf,
-						    shid->input_transfer[1].len,
+						    shid->input_transfer.tx_buf,
+						    shid->input_transfer.len,
+						    shid->input_transfer.rx_buf,
+						    shid->input_transfer.len,
 						    shid->input_message.status);
 
 		if (shid->input_message.status < 0) {
@@ -942,10 +943,10 @@ static irqreturn_t spi_hid_dev_irq(int irq, void *_shid)
 			goto out;
 		}
 
-		trace_spi_hid_input_body_complete(shid, shid->input_transfer[0].tx_buf,
-						  shid->input_transfer[0].len,
-						  shid->input_transfer[1].rx_buf,
-						  shid->input_transfer[1].len,
+		trace_spi_hid_input_body_complete(shid, shid->input_transfer.tx_buf,
+						  shid->input_transfer.len,
+						  shid->input_transfer.rx_buf,
+						  shid->input_transfer.len,
 						  shid->input_message.status);
 
 		if (shid->input_message.status < 0) {
@@ -995,8 +996,10 @@ static int spi_hid_alloc_buffers(struct spi_hid *shid, size_t report_size)
 		return -ENOMEM;
 	shid->response = tmp;
 
-	if (!shid->output || !shid->input || !shid->response)
+	tmp = devm_krealloc(dev, shid->input_tx, inbufsize, GFP_KERNEL | __GFP_ZERO);
+	if (!tmp)
 		return -ENOMEM;
+	shid->input_tx = tmp;
 
 	shid->bufsize = report_size;
 
