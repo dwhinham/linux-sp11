@@ -4,9 +4,11 @@
  * Copyright (c) 2025 Dale Whinham <daleyo@gmail.com>
  */
 
+#include <dt-bindings/dma/qcom-gpi.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
 #include "hamoa-pmics.dtsi"
@@ -275,6 +277,17 @@
 		pinctrl-names = "default";
 
 		regulator-boot-on;
+	};
+
+	vreg_ts: regulator-ts {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VREG_TS";
+
+		gpio = <&tlmm 64 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		startup-delay-us = <10000>;
 	};
 
 	vph_pwr: regulator-vph-pwr {
@@ -1148,6 +1161,42 @@
 	vdd3-supply = <&vreg_l8b_3p0>;
 };
 
+&gpi_dma1 {
+	status = "okay";
+};
+
+&spi10 {
+	compatible = "qcom,geni-spi-qspi";
+
+	dmas = <&gpi_dma1 0 2 QCOM_GPI_QSPI>,
+	       <&gpi_dma1 1 2 QCOM_GPI_QSPI>;
+
+	pinctrl-0 = <&qup_spi10_data_clk>, <&qup_spi10_data23>, <&qup_spi10_cs>;
+
+	status = "okay";
+
+	touchscreen@0 {
+		compatible = "microsoft,g6-touch-digitizer", "hid-over-spi";
+		reg = <0>;
+
+		interrupts-extended = <&tlmm 51 IRQ_TYPE_EDGE_FALLING>;
+		spi-max-frequency = <40000000>;
+
+		reset-gpios = <&tlmm 48 GPIO_ACTIVE_LOW>;
+
+		vdd-supply = <&vreg_ts>;
+
+		pinctrl-0 = <&ts_int_n>, <&ts_reset_n>;
+		pinctrl-names = "default";
+
+		input-report-header-address = <0x1000>;
+		input-report-body-address = <0x1004>;
+		output-report-address = <0x2000>;
+		read-opcode = <0xeb>;
+		write-opcode = <0xe2>;
+	};
+};
+
 &swr0 {
 	status = "okay";
 
@@ -1193,6 +1242,27 @@
 		pins = "gpio18";
 		function = "gpio";
 		drive-strength = <2>;
+		bias-disable;
+	};
+
+	ts_reset_n: ts-reset-n-state {
+		pins = "gpio48";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	qup_spi10_data23: qup-spi10-data23-state {
+		/* IO2, IO3 */
+		pins = "gpio49", "gpio50";
+		function = "qup1_se2";
+		drive-strength = <6>;
+		bias-disable;
+	};
+
+	ts_int_n: ts-int-n-state {
+		pins = "gpio51";
+		function = "gpio";
 		bias-disable;
 	};
 
