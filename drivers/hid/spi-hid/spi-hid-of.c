@@ -222,6 +222,7 @@ MODULE_DEVICE_TABLE(of, spi_hid_of_match);
 static const struct spi_device_id spi_hid_of_id_table[] = {
 	{ "hid", 0 },
 	{ "hid-over-spi", 0 },
+	{ "g6-touch-digitizer", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, spi_hid_of_id_table);
