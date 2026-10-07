@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2026 Haipeng Lin <jimmie.lin@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "x1e80100-microsoft-denali-oled.dts"
+#include "x1-microsoft-denali-5g.dtsi"
+
+/ {
+	model = "Microsoft Surface Pro 11th Edition (OLED, 5G)";
+	compatible = "microsoft,denali-oled-5g", "microsoft,denali-oled",
+		     "microsoft,denali", "qcom,x1e80100";
+};
