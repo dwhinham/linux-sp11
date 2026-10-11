@@ -195,6 +195,29 @@ static int scmi_limit_notify_cb(struct notifier_block *nb, unsigned long event, 
 	return NOTIFY_OK;
 }
 
+/*
+ * Some firmware (seen on the Surface Pro 11, X1P64100) reports a sustained
+ * frequency of 0 for a performance domain, so the SCMI perf protocol flags
+ * every OPP of that domain as turbo. With boost disabled the cpufreq core
+ * then finds no usable frequency and rejects the policy (-EINVAL), leaving
+ * the whole cluster without DVFS. A table made only of boost entries carries
+ * no information, so treat its entries as regular frequencies.
+ */
+static void scmi_cpufreq_fixup_all_boost(struct device *cpu_dev,
+					 struct cpufreq_frequency_table *table)
+{
+	struct cpufreq_frequency_table *pos;
+
+	cpufreq_for_each_valid_entry(pos, table)
+		if (!(pos->flags & CPUFREQ_BOOST_FREQ))
+			return;
+
+	cpufreq_for_each_valid_entry(pos, table)
+		pos->flags &= ~CPUFREQ_BOOST_FREQ;
+
+	dev_info(cpu_dev, "all OPPs flagged as turbo by firmware, using them as regular OPPs\n");
+}
+
 static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int ret, nr_opp, domain;
@@ -283,6 +306,8 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 		dev_err(cpu_dev, "failed to init cpufreq table: %d\n", ret);
 		goto out_free_opp;
 	}
+
+	scmi_cpufreq_fixup_all_boost(cpu_dev, freq_table);
 
 	priv->cpu_dev = cpu_dev;
 	priv->domain_id = domain;
