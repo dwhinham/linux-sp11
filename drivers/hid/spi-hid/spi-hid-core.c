@@ -255,7 +255,7 @@ static const char *spi_hid_power_mode_string(enum hidspi_power_state power_state
  * requests. Set READY here: the report descriptor check that normally sets it
  * needs power_lock, which callers hold.
  */
-static void spi_hid_wait_for_reset(struct spi_hid *shid)
+static int spi_hid_wait_for_reset(struct spi_hid *shid)
 {
 	unsigned long timeout = msecs_to_jiffies(SPI_HID_RESET_TIMEOUT +
 						 SPI_HID_RESP_TIMEOUT);
@@ -263,10 +263,14 @@ static void spi_hid_wait_for_reset(struct spi_hid *shid)
 	if (!wait_for_completion_timeout(&shid->reset_done, timeout)) {
 		dev_warn(&shid->spi->dev,
 			 "Device descriptor not received after reset\n");
-		return;
+		clear_bit(SPI_HID_READY, &shid->flags);
+		set_bit(SPI_HID_ERROR, &shid->flags);
+		schedule_work(&shid->reset_work);
+		return -ETIMEDOUT;
 	}
 
 	set_bit(SPI_HID_READY, &shid->flags);
+	return 0;
 }
 
 static int spi_hid_suspend(struct spi_hid *shid)
@@ -326,8 +330,8 @@ static int spi_hid_suspend(struct spi_hid *shid)
 				shid->ops->deassert_reset(shid->ops);
 				enable_irq(shid->spi->irq);
 				if (shid->hid) {
-					spi_hid_wait_for_reset(shid);
-					hid_driver_reset_resume(shid->hid);
+					if (!spi_hid_wait_for_reset(shid))
+						hid_driver_reset_resume(shid->hid);
 				}
 				return error;
 			}
@@ -387,8 +391,11 @@ static int spi_hid_resume(struct spi_hid *shid)
 		schedule_work(&shid->reset_work);
 
 	if (shid->hid) {
-		if (was_reset)
-			spi_hid_wait_for_reset(shid);
+		if (was_reset) {
+			error = spi_hid_wait_for_reset(shid);
+			if (error)
+				return error;
+		}
 		error = hid_driver_reset_resume(shid->hid);
 		if (error) {
 			dev_err(dev, "%s: failed to reset resume hid driver: %d\n",
