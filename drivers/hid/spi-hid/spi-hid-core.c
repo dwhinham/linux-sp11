@@ -1524,7 +1524,11 @@ static int spi_hid_dev_init(struct spi_hid *shid)
 
 	guard(mutex)(&shid->power_lock);
 
-	shid->ops->assert_reset(shid->ops);
+	error = shid->ops->assert_reset(shid->ops);
+	if (error) {
+		dev_err(dev, "failed to assert reset: %d\n", error);
+		return error;
+	}
 
 	shid->ops->sleep_minimal_reset_delay(shid->ops);
 
