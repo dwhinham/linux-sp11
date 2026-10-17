@@ -98,6 +98,10 @@ static int spi_hid_of_populate_config(struct spi_hid_of_config *conf,
 		return -ENODEV;
 	}
 
+	/* Reset loses the heatmap mode selected by iptsd. */
+	if (device_is_compatible(dev, "microsoft,g6-touch-digitizer"))
+		conf->property_conf.rebind_after_reset = true;
+
 	conf->supply = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(conf->supply))
 		return dev_err_probe(dev, PTR_ERR(conf->supply),

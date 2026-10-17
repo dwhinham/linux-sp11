@@ -17,6 +17,8 @@ struct spi_hid_conf {
 	u32 output_report_address;
 	u8 read_opcode;
 	u8 write_opcode;
+	/* Reconnect hidraw clients when reset loses device-specific state. */
+	bool rebind_after_reset;
 };
 
 /**
