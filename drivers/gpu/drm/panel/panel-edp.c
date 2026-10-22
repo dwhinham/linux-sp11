@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/backlight.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -401,6 +402,18 @@ static int panel_edp_disable(struct drm_panel *panel)
 static int panel_edp_suspend(struct device *dev)
 {
 	struct panel_edp *p = dev_get_drvdata(dev);
+
+	/*
+	 * eDP panel power sequencing requires the backlight to be off
+	 * whenever the panel is powered off. Before the first modeset the
+	 * backlight driver may still hold the enable state inherited from
+	 * the firmware, and some panels' backlight controllers come up in a
+	 * wrong dimming mode if their enable line stays high across a panel
+	 * power cycle. Sync the backlight off here so that the backlight
+	 * enable from drm_panel_enable() performs a true power-on in the
+	 * correct order.
+	 */
+	backlight_disable(p->base.backlight);
 
 	drm_dp_dpcd_set_powered(p->aux, false);
 	gpiod_set_value_cansleep(p->enable_gpio, 0);
