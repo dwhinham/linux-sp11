@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/backlight.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -917,6 +918,16 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 	err = drm_panel_of_backlight(&panel->base);
 	if (err)
 		return err;
+
+	/*
+	 * Backlight drivers may preserve the state left by firmware,
+	 * but panel-edp does not support seamless handoff.
+	 * Runtime PM may power off the panel before the first modeset,
+	 * leaving the backlight on.
+	 * Disable it here so the DRM panel core enables it in the correct
+	 * order at the first modeset.
+	 */
+	backlight_disable(panel->base.backlight);
 
 	/*
 	 * We use runtime PM for prepare / unprepare since those power the panel
