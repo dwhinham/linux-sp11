@@ -316,7 +316,7 @@ static int spi_hid_suspend(struct spi_hid *shid)
 
 static int spi_hid_resume(struct spi_hid *shid)
 {
-	int error;
+	int error = 0;
 	struct device *dev = &shid->spi->dev;
 	bool was_reset = false;
 
@@ -333,7 +333,12 @@ static int spi_hid_resume(struct spi_hid *shid)
 	 * while the device is off.
 	 */
 	if (shid->power_state == HIDSPI_OFF) {
-		shid->ops->assert_reset(shid->ops);
+		error = shid->ops->assert_reset(shid->ops);
+		if (error) {
+			dev_err(dev, "failed to assert reset: %d\n", error);
+			enable_irq(shid->spi->irq);
+			return error;
+		}
 
 		shid->ops->sleep_minimal_reset_delay(shid->ops);
 
@@ -347,11 +352,13 @@ static int spi_hid_resume(struct spi_hid *shid)
 		shid->power_state = HIDSPI_ON;
 		reinit_completion(&shid->reset_done);
 		error = shid->ops->deassert_reset(shid->ops);
-		if (error)
+		if (error) {
 			dev_err(dev, "%s: failed to deassert reset: %d\n",
 				__func__, error);
-		else
+			set_bit(SPI_HID_ERROR, &shid->flags);
+		} else {
 			was_reset = true;
+		}
 	}
 
 	enable_irq(shid->spi->irq);
@@ -364,6 +371,9 @@ static int spi_hid_resume(struct spi_hid *shid)
 	    test_bit(SPI_HID_CREATE_DEVICE, &shid->flags) ||
 	    test_bit(SPI_HID_ERROR, &shid->flags))
 		schedule_work(&shid->reset_work);
+
+	if (error)
+		return error;
 
 	if (shid->hid) {
 		if (was_reset && spi_hid_wait_for_reset(shid)) {
