@@ -242,8 +242,8 @@ static const char *spi_hid_power_mode_string(enum hidspi_power_state power_state
 
 /*
  * Wait for the device descriptor response after reset; the device then takes
- * requests. Set READY here: the report descriptor check that normally sets it
- * needs power_lock, which callers hold.
+ * requests. Set READY here for devices that reuse their HID instance. Devices
+ * that rebind after reset become ready when the new HID instance is parsed.
  */
 static int spi_hid_wait_for_reset(struct spi_hid *shid)
 {
@@ -256,7 +256,8 @@ static int spi_hid_wait_for_reset(struct spi_hid *shid)
 		return -ETIMEDOUT;
 	}
 
-	set_bit(SPI_HID_READY, &shid->flags);
+	if (!shid->conf->rebind_after_reset)
+		set_bit(SPI_HID_READY, &shid->flags);
 	return 0;
 }
 
@@ -383,6 +384,9 @@ static int spi_hid_resume(struct spi_hid *shid)
 			schedule_work(&shid->reset_work);
 			return -ETIMEDOUT;
 		}
+		/* Refresh recreates the HID device after a successful handshake. */
+		if (was_reset && shid->conf->rebind_after_reset)
+			return 0;
 		/* HID requests would fail while the device is not ready. */
 		if (!test_bit(SPI_HID_READY, &shid->flags))
 			return 0;
@@ -870,8 +874,9 @@ static void spi_hid_refresh_device(struct spi_hid *shid)
 				     (size_t)error);
 	}
 
-	/* Same report descriptor, so no need to create a new hid device. */
-	if (new_crc32 == shid->report_descriptor_crc32) {
+	/* Some devices lose userspace-selected modes even with the same CRC. */
+	if (new_crc32 == shid->report_descriptor_crc32 &&
+	    !shid->conf->rebind_after_reset) {
 		shid->reset_attempts = 0;
 		set_bit(SPI_HID_READY, &shid->flags);
 		return;
