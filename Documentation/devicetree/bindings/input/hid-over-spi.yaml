@@ -22,11 +22,30 @@ description: |+
 allOf:
   - $ref: /schemas/input/touchscreen/touchscreen.yaml#
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microsoft,romulus13-touchpad
+    then:
+      properties:
+        spi-max-frequency:
+          maximum: 20000000
+        spi-rx-bus-width:
+          items:
+            - const: 4
+        spi-tx-bus-width:
+          items:
+            - const: 4
+      required:
+        - spi-rx-bus-width
+        - spi-tx-bus-width
 
 properties:
   compatible:
     enum:
       - microsoft,g6-touch-digitizer
+      - microsoft,romulus13-touchpad
 
   reg:
     maxItems: 1
@@ -71,5 +90,26 @@ examples:
         vdd-supply = <&pm8350c_l3>;
         pinctrl-names = "default";
         pinctrl-0 = <&ts_d6_int_bias>;
+      };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      touchpad@0 {
+        compatible = "microsoft,romulus13-touchpad";
+        reg = <0>;
+        spi-max-frequency = <20000000>;
+        spi-rx-bus-width = <4>;
+        spi-tx-bus-width = <4>;
+        interrupts-extended = <&tlmm 3 IRQ_TYPE_LEVEL_LOW>;
+        vdd-supply = <&vreg_ts_5p0>;
+        reset-gpios = <&tlmm 120 GPIO_ACTIVE_LOW>;
+        pinctrl-0 = <&touchpad_reset>;
+        pinctrl-names = "default";
       };
     };
