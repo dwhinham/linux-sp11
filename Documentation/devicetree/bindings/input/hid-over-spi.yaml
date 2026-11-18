@@ -40,10 +40,29 @@ allOf:
       required:
         - spi-rx-bus-width
         - spi-tx-bus-width
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microsoft,denali-touchscreen
+    then:
+      properties:
+        spi-max-frequency:
+          maximum: 40000000
+        spi-rx-bus-width:
+          items:
+            - const: 4
+        spi-tx-bus-width:
+          items:
+            - const: 4
+      required:
+        - spi-rx-bus-width
+        - spi-tx-bus-width
 
 properties:
   compatible:
     enum:
+      - microsoft,denali-touchscreen
       - microsoft,g6-touch-digitizer
       - microsoft,romulus13-touchpad
 

@@ -75,6 +75,19 @@ static const struct spi_hid_of_data romulus13_data = {
 	.minimal_reset_delay_ms = 300,
 };
 
+static const struct spi_hid_of_data denali_data = {
+	.conf = {
+		.input_report_header_address = 0x1000,
+		.input_report_body_address = 0x1004,
+		.output_report_address = 0x2000,
+		.read_opcode = 0xeb,
+		.write_opcode = 0xe2,
+		.rebind_after_reset = true,
+	},
+	.post_power_on_delay_ms = 10,
+	.minimal_reset_delay_ms = 100,
+};
+
 static int spi_hid_of_populate_config(struct spi_hid_of_config *conf,
 				      struct device *dev)
 {
@@ -193,6 +206,7 @@ static int spi_hid_of_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id spi_hid_of_match[] = {
+	{ .compatible = "microsoft,denali-touchscreen", .data = &denali_data },
 	{ .compatible = "microsoft,romulus13-touchpad", .data = &romulus13_data },
 	{ .compatible = "microsoft,g6-touch-digitizer", .data = &microsoft_g6_data },
 	{ }
@@ -200,6 +214,7 @@ static const struct of_device_id spi_hid_of_match[] = {
 MODULE_DEVICE_TABLE(of, spi_hid_of_match);
 
 static const struct spi_device_id spi_hid_of_id_table[] = {
+	{ .name = "denali-touchscreen", .driver_data = (kernel_ulong_t)&denali_data },
 	{ .name = "romulus13-touchpad", .driver_data = (kernel_ulong_t)&romulus13_data },
 	{ .name = "g6-touch-digitizer", .driver_data = (kernel_ulong_t)&microsoft_g6_data },
 	{ }
